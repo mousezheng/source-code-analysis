@@ -31,10 +31,23 @@ http://localhost/we%20b/index.php  returns '/we%20b'
 
 ### InputBag
 
+继承自 [ParameterBag](#ParameterBag)，针对字符串类型变量进行更多细节上的判断
+
 ### FileBag
+
+此类中提供 **fixPhpFilesArray()** 方法，用于修复 **$_FILES** 数组
+
+> PHP 的 \$_FILES 数组会因为是否上传文件字段名而出现不同格式（“正常数组”和“键值数组”）。
+>这个方法修复 \$_FILES 为正常的数组，如果原始数组是正常的则会返回原始数组。
 
 ### HeaderBag
 
+类似 [ParameterBag](#ParameterBag)，实现基本的对迭代器和计数器。
+
 ### ServerBag
 
+继承自 [ParameterBag](#ParameterBag)，添加 **getHeaders()**方法，对构造器传入参数进行提取，得到 HTTP headers.
+
 ### ResponseHeaderBag
+
+继承自 [HeaderBag](#HeaderBag) 对诸多方法进行重写
