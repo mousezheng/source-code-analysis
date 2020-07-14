@@ -51,3 +51,12 @@ http://localhost/we%20b/index.php  returns '/we%20b'
 ### ResponseHeaderBag
 
 继承自 [HeaderBag](#HeaderBag) 对诸多方法进行重写
+
+
+## RequestStack
+
+用于控制请求生命周期,存储多个请求时使用.主要实现对请求数组进行栈操作.
+
+## Response
+
+实现了一个基础的响应类,http 请求响应字段定义.及 getter 和 setter
