@@ -17,3 +17,10 @@ SessionInterFace 中定义session 的操作方法。在 Session 类中做简单�
 - Storage
 
 通过 SessionBagProxy 操作不同形式存储的 session
+
+## Storage
+
+- native
+	- phpBridge
+- mockArray
+	- mockFile
