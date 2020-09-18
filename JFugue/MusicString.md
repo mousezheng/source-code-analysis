@@ -88,7 +88,9 @@ Octave | C | C#/Db | D | D#/Eb | E | F | F#/Gb | G | G#/Ab | A | A#/Bb | B |
 和弦反转是演奏和弦音符的另一种方法，通过改变和弦中的那个音作为根音。有时候将其称为“和弦发声”。
 
 第一次倒置表示和弦的常规根音应上移八度，使和弦中的第二个音符成为新的低音音符。第二个倒置表示和弦的根音和第二个音符应高八度，使和弦的第三个音符成为新的贝斯音符。具有三个以上成员的和弦可以进行第三次反转，具有四个以上成员的和弦可以进行四个反转，依此类推。和弦反转的例子如下图
+
 ![![enter description here](https://markdown.xiaoshujiang.com/img/spinner.gif "[[[1600328891276]]]" )](./images/1600328899345.png)
+
 
 和弦反转也可以明确的指出将要成为新低音音符的音符来描述。可能在分页乐谱中看到 C/E 和弦。 C-Major 表示用`E`音符作为基础音符。
 
@@ -845,4 +847,403 @@ F5i");
  - 创建一个Hidden Markov Model，该模型可以为给定的艺术家识别一个音符跟随另一个音符的可能性； 然后用它来创作歌手风格的新歌，
  - 还有其他无限的可能性
 
-这个调用很简单，但是幕后的事情很复杂。首先，要将MIDI文件转换为MusicString，请使用loadMidi（）命令：
+这个调用很简单，但是幕后的事情很复杂。首先，要将 MIDI 文件转换为 MusicString，请使用`loadMidi()`命令：
+```java
+Player player = new Player(); 
+ Pattern pattern = player.loadMidi(new File("music-file.mid"));
+```
+
+与`playMidiDirectly()`一样，如果读取 MIDI 文件有问题，则 `loadMidi()`命令可能会引发 IOException 或InvalidMidiDataException，因此请务必捕获这些异常。
+
+在幕后，JFugue正在做很多事情：
+1. 获取MIDI文件格式，并从中获取音序的时间和分辨率，
+2. 将 MidiParser 连接到 MusicStringRenderer
+3. 从 MIDI 文件中获取一个序列并进行解析
+4. 从MusicStringRenderer返回一个新的Pattern
+
+生成的 Pattern 包含一个与 MIDI 文件非常相似的 MusicString 。 如果查看 MusicString，则会看到许多熟悉的命令。
+
+从MIDI文件创建的MusicString与可能自己创建的MusicString之间存在一些差异。首先 所有音符值和持续时间均使用其数值表示，因此用`[60]/0.25`代替了`C5q`，同样，您将看到乐器的数值（例如，用`I0`代替`I[Piano]`）和其他带有值的MusicString命令。
+
+更令人惊讶的是，您会看到许多“时间”命令-一个标志 `@`，随后是播放下一个命令的时间（以毫秒为单位）。通常，几乎不会在自己创建的 MusicString 中使用Time命令。构建自己的 MusicString 时，您将使用音符时长和休止符来适当地隔开音乐。MIDI对音乐的定义不同：音符可以随时打开或关闭，而不一定在规定的持续时间内。而且，MIDI中没有明确的休止符； 只有“注解”和“注解”事件可以在不确定的时间发生。这就是为什么您会看到“时间”命令的原因，也是为什么您会看到音符持续时间不适合典型的整个下半年等的原因。代替[60] /0.25，您更有可能会看到类似[60] /0.0242555568的信息
+
+
+## FilePlayer
+JFugue FilePlayer（org.jfugue.extras.FilePlayer）旨在用作命令行实用程序，它将JFugue模式文件作为输入并播放MIDI
+
+可以在模式上使用 `saveMusicString()` 方法创建JFugue模式文件，也可以在任何文本编辑器中创建一个JFugue模式文件。
+
+无论哪种情况，每行都可以包含MusicString。 文件中的所有MusicStrings将被串联在一起以创建一个新的Pattern实例
+
+以井号（`＃`）开头的行被视为注释。 请注意，注释行必须以井号**开头**； 如果英镑符号位于行中的其他位置，则JFugue会忽略它，因为代表清晰音符的键也是 pound。
+
+JFugue模式文件不支持使用Rhythm，IntervalNotation或MicrotoneNotation类创建的音乐。以下是一个示例JFugue模式文件，其中包含贝多芬“FürElise”的前几个小节
+```txt
+# 
+# "Fur Elise", Ludwig van Beethoven 
+# Transcribed into JFugue by David Koelle 
+# http://www.jfugue.org 
+# 
+T200 
+V0 E5s D#5s | E5s D#5s E5s B4s D5s C5s | A4i Rs C4s E4s A4s | 
+B4i Rs E4s G#4s B4s | C5i Rs E4s E5s D#5s | E5s D#5s E5s B4s 
+D5s C5s | A4i Rs C4s E4s A4s | B4i Rs E4s C5s B4s | A4q 
+V1 Ri | Riii | A2s E2s A3s Rsi | 
+E2s E3s G#3s Rsi | A2s E2s A3s Rsi | Riii | A2s E2s A3s 
+Rsi | E2s E3s G#3s Rsi | Riii
+```
+
+
+## Midi2JFugue
+Midi2JFugue 程序（org.jfugue.extras.Midi2JFugue）使用 JFugue 的解析器和渲染器将 MIDI 文件转换为 JFugue 模式文件。
+与 FilePlayer 一样，它旨在用作命令行实用程序。
+
+传递给 Midi2JFugue 的参数包括现有 MIDI 文件的文件名和目标模板文件的文件名。
+
+然后可以使用 FilePlayer 播放模式文件，或使用 `Pattern.loadMusicString(File)` 方法将其加载到 JFugue 模式中
+
+
+## 例子
+
+### 播放经典的音乐
+```java
+ Player player = new Player(); 
+ player.play("C D E F G A B"); 
+ player.close(); 
+```
+### 保存音乐为 MIDI 文件
+
+```java
+Player player = new Player(); 
+Pattern pattern = new Pattern("A5q B5q C5q");
+player.saveMidi(pattern, new File("MySong.midi"));
+```
+### 加载播放 MIDI 文件
+
+```java
+Player player = new Player();
+player.playMidiDirectly(new File("MySong.midi"));
+```
+
+### 保存  Pattern
+
+
+```java
+Pattern pattern = new Pattern("A5q B5q C5q");
+pattern.saveMusicString(new File("pattern.jfugue"));
+```
+
+### 加载 Pattern
+
+```java
+Player player = new Player(); 
+Pattern pattern = null;
+ pattern = Pattern.loadMusicString(new File("pattern.jfugue")); 
+ player.play(pattern);
+```
+
+### 如何加载 MIDI 文件并将其转换为 JFugue MusicString
+这将获取一个MIDI文件并将其转换为JFugue模式，然后可以根据需求对其做修改，如果您对它的工作方式感兴趣，那么它是JFugue解析器-渲染器体系结构的一个很好的例子。
+
+```java
+ Player player = new Player(); 
+ Pattern pattern = null; 
+try { 
+ 	pattern = player.loadMidi(new File("MySong.midi")); 
+ 	System.out.println(pattern); // Show the pattern
+ } catch (IOException e) 
+ { 
+// handle IO Exception
+ } catch (InvalidMidiDataException e) 
+ { 
+// handle Invalid MIDI Data Exception
+ }
+```
+### 结合 Patterns
+
+```java
+ Pattern pattern1 = new Pattern("A5q"); 
+ Pattern pattern2 = new Pattern("C5q C5q G5q"); 
+ pattern1.add(pattern2); // Add patterns together
+ pattern1.add("F6h"); // Add a MusicString to a pattern
+```
+
+### 重复 Patterns
+
+```java
+ Pattern pattern1 = new Pattern("A5q C5q G5q"); 
+// Repeat this pattern 4 times
+ pattern1.repeat(4); 
+// Repeat twice the pattern starting at position 4
+// (results in A5q C5q G5q C5q G5q C5q G5q)
+ pattern1.repeat(2, 4); 
+// Repeat twice the subset of the pattern from position 4
+// through position 6 (results in A5q C5q G5q C5q C5q)
+ pattern1.repeat(2, 4, 6);
+```
+### 创建匿名 ParserListener
+
+```java
+public class GetInstrumentsUsedTool extends ParserListenerAdapter 
+{ 
+	private List<Instrument> instruments; 
+	public GetInstrumentsUsedTool()
+ { 
+	instruments = new ArrayList<Instrument>(); 
+ } 
+@Override
+public void instrumentEvent(Instrument instrument) 
+ { 
+	if (!instruments.contains(instrument)) { 
+		instruments.add(instrument); 
+	 } 
+ } 
+public List<Instrument> getInstrumentsUsed(Pattern pattern) 
+ { 
+	 MusicStringParser parser = new MusicStringParser(); 
+	 parser.addParserListener(this); 
+	 parser.parse(pattern); 
+	return instruments; 
+ } 
+}
+```
+### 创建解析器 Parser
+1. 创建解析器的子类
+2. 创建一个`parse()`方法，该方法获取您要解析的任何对象，并在解析某些音乐事件时触发事件
+3. 在适当的时候构造JFugue元素，并使用Parser类中可用的fireXxxxEvent（）方法将它们触发到任何ParserListener：
+
+```java
+protected void fireVoiceEvent(Voice event) 
+protected void fireTempoEvent(Tempo event) 
+protected void fireInstrumentEvent(Instrument event) 
+protected void fireLayerEvent(Layer event) 
+protected void fireTimeEvent(Time event) 
+protected void fireKeySignatureEvent(KeySignature event) 
+protected void fireMeasureEvent(Measure event) 
+protected void fireControllerEvent(Controller event) 
+protected void fireChannelPressureEvent(ChannelPressure  event) 
+protected void firePolyphonicPressureEvent(PolyphonicPressure event) 
+protected void firePitchBendEvent(PitchBend event) 
+protected void fireNoteEvent(Note event) 
+protected void fireParallelNoteEvent(Note event) 
+protected void fireSequentialNoteEvent(Note event)
+```
+
+### 创建渲染器 Renderer
+1. 创建一个类实现 ParserListener
+2. 覆盖其方法
+
+```java
+public void voiceEvent(Voice voice); 
+public void tempoEvent(Tempo tempo); 
+public void instrumentEvent(Instrument instrument); 
+public void layerEvent(Layer layer); 
+public void measureEvent(Measure measure); 
+public void timeEvent(Time time); 
+public void keySignatureEvent(KeySignature keySig); 
+public void controllerEvent(Controller controller); 
+public void channelPressureEvent(ChannelPressure channelPressure); 
+public void polyphonicPressureEvent(PolyphonicPressure polyphonicPressure); 
+public void pitchBendEvent(PitchBend pitchBend); 
+public void noteEvent(Note note); 
+public void parallelNoteEvent(Note note); 
+public void sequentialNoteEvent(Note note);
+```
+### 链接解析器及渲染器
+
+```java
+YourParser parser = new YourParser(); 
+YourRenderer renderer = new YourRenderer(); 
+ parser.addParserListener(renderer); 
+ parser.parse(whatever object your parser parses);
+```
+### 解析 MIDI 并渲染为 MusicString
+
+```java
+MidiParser parser = new MidiParser(); 
+ MusicStringRenderer renderer = new MusicStringRenderer(); 
+ parser.addParserListener(renderer); 
+ parser.parse(MIDI sequence);
+```
+### 解析并 MusicString 渲染为 MIDI
+
+```java
+MusicStringParser parser = new MusicStringParser(); 
+ MidiRenderer renderer = new MidiRenderer(); 
+ parser.addParserListener(renderer); 
+ parser.parse(MusicString);
+```
+### 创建韵律 Rhythm
+
+```java
+Rhythm rhythm = new Rhythm(); 
+// Set up your substitutions. Examples:
+ rhythm.addSubstitution('O', "[ACOUSTIC_BASS_DRUM]s"); 
+ rhythm.addSubstitution('o', "[ACOUSTIC_SNARE]s"); 
+ rhythm.addSubstitution('\'', "[CLOSED_HI_HAT]s"); 
+ rhythm.addSubstitution('`', "[OPEN_HI_HAT]s"); 
+ rhythm.addSubstitution('.', "Rs");
+ // Create layers using your substitutions. Examples:
+ rhythm.setLayer(1, "O.OO...O.OO....O"); 
+ rhythm.setLayer(2, "....o.......o..."); 
+ rhythm.setLayer(3, "'.`.'.`.'.`.'.`."); 
+// Generate a Pattern from the Rhythm
+ Pattern pattern = rhythm.getPattern(); 
+// Play the pattern!
+ Player player = new Player(); 
+ player.play(pattern);
+```
+
+### 使用间隔符号
+
+```java
+// Specify a MusicString using intervals 
+ IntervalNotation riff = new IntervalNotation( 
+"<1>q <5>q <8>q <1>q+<5>q+<8>q <1>majq"); 
+ // Get a Pattern specifically tailored to the C5 note 
+ Pattern pattern = riff.getPatternForRootNote("C5"); 
+ // Play the pattern 
+ Player player = new Player(); 
+ player.play(pattern); 
+ // Compare the result against a pattern that explicitly 
+ // uses C5, just to demonstrate that this works! 
+ player.play("C5q E5q G5q C5q+E5q+G5q C5majq"); 
+ // Get riffs for multiple root notes, then play them together 
+ Pattern p1 = riff.getPatternForRootNote("C5"); 
+ Pattern p2 = riff.getPatternForRootNote("E5"); 
+ Pattern p3 = riff.getPatternForRootNote("C5"); 
+ Pattern p4 = riff.getPatternForRootNote("G5"); 
+ Pattern fullPattern = new Pattern(p1, p2, p3, p4); 
+ new Player().play(fullPattern);
+```
+
+### 结合间隔和旋律
+
+```java
+Rhythm rhythm = new Rhythm(); 
+// Step 1a. Hammer out your beat – this example is 8-beat 
+rhythm.setLayer(1, "O.OO...O.OO....O"); 
+rhythm.setLayer(2, "....o.......o..."); 
+rhythm.setLayer(3, "^.`.^.`.^.`.^.`."); 
+rhythm.setVoice(1, "1...234.....11..");
+rhythm.setVoice(2, "W V ....W "); 
+// Step 1b. Set voice details (like instruments) 
+rhythm.setVoiceDetails(1, "I[Piano]"); 
+rhythm.setVoiceDetails(2, "I[String_Ensemble_2]"); 
+// Step 2. Identify instruments to use in the beat 
+// (ensure the MusicString for each is the same duration) 
+rhythm.addSubstitution('O', "[ACOUSTIC_BASS_DRUM]s"); 
+rhythm.addSubstitution('o', "[ACOUSTIC_SNARE]s"); 
+rhythm.addSubstitution('^', "[CLOSED_HI_HAT]s"); 
+rhythm.addSubstitution('`', "[OPEN_HI_HAT]s"); 
+rhythm.addSubstitution('.', "Rs"); 
+rhythm.addSubstitution('1', "<1>s"); 
+rhythm.addSubstitution('2', "<2>s"); 
+rhythm.addSubstitution('3', "<3>s"); 
+rhythm.addSubstitution('4', "<4>s"); 
+rhythm.addSubstitution('W', "<1>qa120d120"); 
+rhythm.addSubstitution('V', "<4>qa120d120"); 
+// Step 3. Get the Pattern, repeat it, and play it 
+Pattern p1 = rhythm.getPatternWithInterval (new Pattern("C3")); 
+Pattern p2 = rhythm.getPatternWithInterval (new Pattern("E3")); 
+Pattern p3 = rhythm.getPatternWithInterval (new Pattern("C3")); 
+Pattern p4 = rhythm.getPatternWithInterval (new Pattern("G3")); 
+Pattern pattern = new Pattern(p1, p2, p3, p4); 
+pattern.repeat(2); 
+Player player = new Player(); 
+player.play(pattern);
+```
+
+### 使用微调符号
+
+```java
+MicrotoneNotation microtone = new MicrotoneNotation(); 
+ // Map your desired frequencies to keys. Examples:
+ microtone.put("Be", 400.00); 
+ microtone.put("Bf", 405.50); 
+ microtone.put("Bt", 415.67); 
+ microtone.put("Bv", 429.54); 
+ // Create a pattern containing your keys in brackets 
+ Pattern pattern = microtone.getPattern("<Be>q <Bt>q <Bf>q 
+<Bv>q"); 
+ Player player = new Player(); 
+ player.play(pattern);
+```
+
+### 发送 MIDI 到外接设备
+
+```java
+ DeviceThatWillReceiveMidi device = null; 
+try { 
+ 	device = new DeviceThatWillReceiveMidi(); 
+ } catch (MidiUnavailableException e) { 
+// handle MIDI Unavailable Exception
+ } 
+ Sequence sequence = null; 
+try { 
+ 	sequence = MidiSystem.getSequence(new File("MySong.mid")); 
+ } catch (InvalidMidiDataException e) 
+ { 
+// handle Invalid MIDI Data Exception
+ } catch (IOException e) 
+ { 
+// handle IO Exception
+ } 
+ device.sendSequence(sequence);
+```
+### 发送  Pattern 到外部设备
+
+```java
+ DeviceThatWillReceiveMidi device = null; 
+try { 
+ 	device = new DeviceThatWillReceiveMidi(); 
+ } catch (MidiUnavailableException e) { 
+// handle MIDI Unavailable Exception
+ } 
+ Player player = new Player(); 
+ Pattern pattern = new Pattern("A5q B5q C5q"); 
+ Player.play(pattern); 
+ Sequence sequence = player.getSequencer().getSequence(); 
+ device.sendSequence(sequence);
+```
+### 从外部设备录音
+
+```java
+DeviceThatWillTransmitMidi device = null; 
+try { 
+ 	device = new DeviceThatWillTransmitMidi(); 
+ } catch (MidiUnavailableException e) { 
+// handle MIDI Unavailable Exception
+ }
+ System.out.println("Listening for 5 seconds..."); 
+ device.startListening(); 
+// Wait long enough to play a few notes on the keyboard
+try { 
+ 	Thread.sleep(5000); 
+ } catch (InterruptedException e) 
+ { 
+// handle Interrupted Exception
+ } 
+// Close the device (at program exit)
+ device.stopListening(); 
+ System.out.println("Done listening"); 
+ Pattern pattern = device.getPatternFromListening(); 
+ System.out.println("Pattern from listening: "+pattern); 
+ Player player = new Player(); 
+ player.play(pattern); 
+ player.close();
+```
+### 使用 JFugue 加载音库
+[音乐库参考链接](http://gervill.dev.java.net)
+
+```java
+// Make sure gervill.jar is in your classpath
+ Synthesizer synth = MidiSystem.getSynthesizer(); 
+ Soundbank soundbank = MidiSystem.getSoundbank(new
+File(soundbank filename)); 
+ Sequencer sequencer = 
+player.getSequencerConnecedToSynthesizer(synth); 
+ Pattern pattern = new Pattern(your pattern); 
+ Player player = new Player(sequencer); 
+ player.play(pattern);
+```
