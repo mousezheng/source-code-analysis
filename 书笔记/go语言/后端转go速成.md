@@ -1,4 +1,4 @@
-有后端基础速成笔记
+B站[**go语言速成视频**](https://www.bilibili.com/video/BV1gf4y1r79E?t=131) 有后端基础速成笔记
 
 # Go 语言特点
 
