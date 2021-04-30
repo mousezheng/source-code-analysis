@@ -59,7 +59,7 @@ Go 为什么叫 “Golang”呢，有这么几种说法，
 - 所有 exception 都是用 Error 来处理（有争议）
 - 对 C 的降级处理，并非无缝，没有 C 降级到 asm 那么完美（序列化问题）
 
-# 上代码
+# 知识点
 
 ## hello
 ```go
@@ -561,5 +561,144 @@ func main() {
 	fmt.Printf("%d %d %v\n", len(slice), cap(slice), slice) // 3 5 [1 2 3]
 	slice = sliceInit[:1]
 	fmt.Printf("%d %d %v\n", len(slice), cap(slice), slice) // 1 5 [1]
+}
+```
+
+### map
+
+#### 创建方式
+主要有两种，
+- 通过 make
+- 通过 map 给初始值的方式
+
+```go
+func main() {
+	var map1 map[string]string
+	fmt.Println(map1)        // map[]
+	fmt.Println(map1 == nil) // true
+	map1 = make(map[string]string, 1)// 自动扩容
+	map1["a"] = "aa"
+	map1["c"] = "cc"
+	map1["b"] = "bb"
+	for k, v := range map1 {
+		fmt.Printf("%s %s\t", k, v)// a aa    c cc    b bb   e cc
+	}
+	fmt.Println() 
+
+	map2 := map[string]string{//创建时给默认值
+		"a":"aa",
+		"b":"bb",
+	}
+	fmt.Println(map2)// map[a:aa b:bb]
+	map2["c"] = "cc"
+	fmt.Println(map2)// map[a:aa b:bb c:cc]
+}
+```
+
+#### 操作方式
+增删改查分别是
+- ``` map1["a"] = "aa" ```
+- ``` dedelete(map1, "a") lete```
+- ``` map1["a"] = "bb" ```
+- ``` map1["a"] ```
+
+## 面向对象
+
+### 封装
+
+- 传值问题，通过引用传递/通过拷贝传递
+- 包导入的时候通过首字母大小写确保可用性
+
+```go
+type Student struct {
+	id   int
+	name string
+}
+
+func (this Student) getName() string {
+	return this.name
+}
+
+// set 时不使用指针为值拷贝，无法正常赋值
+func (this Student) setName(name string) Student {
+	this.name = name
+	return this
+}
+
+// 使用指针时可作为引用拷贝，能够正常复制
+func (this *Student) setName2(name string) *Student {
+	this.name = name
+	return this
+}
+
+func main() {
+	stu := Student{
+		id:   1,
+		name: "aa",
+	}
+	fmt.Println(stu) // {1 aa}
+	stu.setName("bb")
+	fmt.Println(stu) // {1 aa}
+	stu = stu.setName("bb")
+	fmt.Println(stu) // {1 bb}
+	stu.setName2("bb")
+	fmt.Println(stu) // {1 bb}
+}
+```
+### 继承
+不得不说，go 的继承与封装是有点生硬，但语法特性还算可以接受。主要通过结构体重声明成员变量为另一个结构体即可，这种情况是可能出现多继承的。
+
+```go
+type Tv struct {// 基类 tv
+	id int
+}
+
+func (this Tv) watch() {
+	fmt.Println("Tv")
+}
+
+type HaierTv struct {// 子类 haierTv 继承 tv 
+	Tv
+}
+
+func (this HaierTv) watch() {
+	fmt.Println("HaierTv")
+}
+
+func main() {
+	tv1 := Tv{
+		id: 1,
+	}
+	tv1.watch()// Tv
+	fmt.Println(tv1)// {1}
+	tv2 := HaierTv{
+		Tv: tv1,
+	}
+	tv2.watch()// HaierTv
+	fmt.Println(tv2)// {{1}}
+}
+```
+
+### 多态
+但看多态，go 的方案还是很不错的，无需显示的声明，只需要实现接口中所有的方法即可实现自动转换
+```go
+type Tv interface {
+	watch()
+}
+
+type HaierTv struct {
+	id   int
+	name string
+}
+
+func (this HaierTv) watch() {
+	fmt.Println("HaierTv")
+}
+
+func main() {
+	var haier Tv//声明为接口类型
+	haier = HaierTv{id: 1, name: "HaierTv"}// 创建 HaierTV 类型
+	haier.watch()
+	fmt.Println(haier)
 }
 ```
