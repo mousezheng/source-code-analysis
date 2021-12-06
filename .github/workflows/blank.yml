@@ -7,7 +7,9 @@ on:
   workflow_dispatch:
     
 jobs:
-  Ubuntu:
+  build:
     runs-on: ubuntu-latest
     steps:
-    - name: SSH connection to Actions
+      - uses: actions/checkout@v2
+      - name: Setup Debug Session
+        uses: csexton/debugger-action@master
