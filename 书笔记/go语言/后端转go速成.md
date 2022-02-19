@@ -203,7 +203,8 @@ func main(){
 } 
 ```
 
-## const 与 iota 
+## const 与 iota （常量/枚举）
+
 ```go
 const pai = 3.14 
 
